@@ -67,6 +67,48 @@ forecast:
   validation_fraction: 0.2                 # Holdout fraction for model scoring
   respect_market_hours: true               # Pause/adjust forecasts by exchange session
   stale_bar_minutes: 20                    # Treat bars older than this as closed-market data
+  persist_predictions: true                # Save each forecast for realized scoring
+  scoring_lookback_hours: 24               # Rolling window for live OOS metrics
+
+  # Target and direction controls
+  predict_normalized_target: true          # Model y = forward_return / rolling_vol
+  target_vol_window: 40                    # Volatility denominator window
+  target_vol_floor: 0.0001                 # Prevent divide-by-near-zero
+  flat_threshold_mode: "volatility"        # "volatility" or "fixed"
+  flat_threshold_multiplier: 0.35          # FLAT threshold = k * vol40 when mode=volatility
+  flat_threshold_min: 0.001                # Lower bound for FLAT threshold
+  enable_abstain: true                     # Emit FLAT when signal is too small
+
+  # Pooled training across symbols
+  pooled_training:
+    max_symbols: 20                        # Use up to N symbols from DB
+    bars_per_symbol: 2000                  # Bars pulled per symbol for pooled set
+    min_train_rows: 300                    # Minimum pooled samples to train
+    include_symbol_one_hot: true           # Symbol ID encoding for pooled model
+    max_feature_nan_ratio: 0.9             # Drop features if >90% missing
+
+  # Walk-forward validation
+  walk_forward:
+    mode: "expanding"                      # "expanding" or "rolling"
+    n_splits: 5
+    min_train_rows: 400
+    val_rows: 200
+    rolling_window_rows: 2500
+
+  # XGBoost tuning
+  xgboost:
+    n_estimators: 400
+    max_depth: 4
+    learning_rate: 0.04
+    min_child_weight: 2.0
+    subsample: 0.9
+    colsample_bytree: 0.9
+    reg_alpha: 0.0
+    reg_lambda: 1.0
+    early_stopping_rounds: 40
+    eval_metric: "rmse"
+    tree_method: "hist"
+    n_jobs: 1
   
   # Uncertainty quantification
   uncertainty_method: "bootstrap"          # "bootstrap" or "quantile" or "conformal"
@@ -83,14 +125,23 @@ forecast:
 
 # Feature engineering
 features:
-  momentum_periods: [1, 5, 10, 20, 40]    # Returns over these minute windows
-  ma_periods: [10, 20, 40]                # Moving average periods
-  volatility_periods: [20, 40]            # Rolling volatility
-  trend_windows: [20, 60, 120]            # Trend/growth lookbacks
+  return_lags: [1, 2, 3, 5, 10, 20, 40]   # Lagged log/percent return windows
+  momentum_periods: [1, 5, 10, 20, 40]    # Legacy compatibility
+  ma_periods: [10, 20, 40, 80]            # Moving average periods
+  volatility_periods: [10, 20, 40, 80]    # Rolling volatility windows
+  trend_windows: [20, 40, 80, 120]        # Trend/growth lookbacks
   rsi_period: 14
-  volume_spike_windows: [5, 40]           # Volume ratios
-  include_time_features: true             # sin/cos of minute of day
+  volume_spike_windows: [10, 20, 40, 80]  # Volume ratios and z-scores
+  vwap_windows: [10, 20, 40]              # Approx VWAP windows
+  regime_window: 200                       # Rolling window for volatility regime quantiles
+  include_time_features: true             # sin/cos of minute/day and session
   include_market_regime: true             # Volatility buckets
+
+# Market context features (common trend)
+market_context:
+  proxy_symbols: ["SPY", "QQQ"]           # First available symbol is used as market proxy
+  proxy_bars_limit: 2000
+  beta_windows: [20, 40, 80]              # Rolling corr/beta windows for relative features
 
 # Top 10 configuration
 top10:
