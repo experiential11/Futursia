@@ -1,0 +1,145 @@
+# Massive 40-Minute Forecaster Configuration
+# ==============================================
+
+# Market API provider selection
+market_api_provider: "yfinance"   # options: 'databento', 'fmp', 'finnhub', or 'yfinance'
+
+# Databento API Configuration
+databento_api:
+  api_key: ""  # Use environment variable: DATABENTO_API_KEY
+  base_url: "https://hist.databento.com/v0"
+  dataset: "DBEQ.BASIC"
+  schema: "ohlcv-1m"
+  stype_in: "raw_symbol"
+  
+  # Rate limiting
+  rate_limit:
+    calls_per_minute: 60
+    backoff_factor: 1.5
+    max_retries: 3
+
+# FMP (FinancialModelingPrep) API Configuration
+fmp_api:
+  base_url: "https://financialmodelingprep.com/api/v3"
+  api_key: ""  # Use environment variable: FMP_API_KEY
+  
+  # Rate limiting (approximate)
+  rate_limit:
+    calls_per_minute: 60
+    backoff_factor: 1.5
+    max_retries: 3
+
+# Finnhub API Configuration (PRIMARY - Live Stock Data)
+finnhub_api:
+  base_url: "https://finnhub.io/api/v1"
+  api_key: ""  # Use environment variable: FINNHUB_API_KEY
+  endpoints:
+    quote: "/quote"
+    candles: "/stock/candle"
+    news: "/company-news"
+  rate_limit:
+    calls_per_minute: 60
+    backoff_factor: 1.5
+    max_retries: 3
+
+# Yahoo Finance configuration (no API key required)
+yfinance_api:
+  watch_symbols: ["AAPL", "MSFT", "NVDA", "7203.T", "6758.T", "9984.T", "8306.T", "7974.T"]
+
+# Data refresh intervals (seconds) - optimized for responsiveness
+refresh:
+  quote_poll_interval: 3                   # Update price every 3 seconds (responsive)
+  forecast_recompute_interval: 15          # Recompute forecast every 15 seconds
+  market_status_check_interval: 300        # Check market status every 5 minutes
+
+# Forecast model configuration
+forecast:
+  horizon_minutes: 40                      # Predict 40 minutes ahead
+  features_lookback_minutes: 240           # Use 4 hours of historical data for features
+  min_bars_for_forecast: 100               # Require at least 100 bars to make forecast
+  
+  # Model selection
+  primary_model: "ridge"                   # "ridge" or "xgboost"
+  include_baseline: true                   # Also predict with naive (0 return)
+  include_ensemble: true                   # Blend ridge + xgboost when available
+  trend_blend_weight: 0.2                  # Blend with recent trend baseline (0-0.5)
+  max_abs_prediction: 0.25                 # Clamp predictions to +/-25%
+  validation_fraction: 0.2                 # Holdout fraction for model scoring
+  respect_market_hours: true               # Pause/adjust forecasts by exchange session
+  stale_bar_minutes: 20                    # Treat bars older than this as closed-market data
+  
+  # Uncertainty quantification
+  uncertainty_method: "bootstrap"          # "bootstrap" or "quantile" or "conformal"
+  confidence_intervals:
+    - 50                                   # 50% prediction interval
+    - 90                                   # 90% prediction interval
+  
+  # Confidence score formula weights
+  confidence_weights:
+    data_coverage: 0.4                     # How complete is recent data
+    volatility_stability: 0.3               # Is volatility stable
+    model_agreement: 0.2                   # Do models agree
+    news_available: 0.1                    # News sentiment available
+
+# Feature engineering
+features:
+  momentum_periods: [1, 5, 10, 20, 40]    # Returns over these minute windows
+  ma_periods: [10, 20, 40]                # Moving average periods
+  volatility_periods: [20, 40]            # Rolling volatility
+  trend_windows: [20, 60, 120]            # Trend/growth lookbacks
+  rsi_period: 14
+  volume_spike_windows: [5, 40]           # Volume ratios
+  include_time_features: true             # sin/cos of minute of day
+  include_market_regime: true             # Volatility buckets
+
+# Top 10 configuration
+top10:
+  metric: "percent_change_1h"              # "percent_change_1h" or "volume_spike"
+  lookback_minutes: 60
+  update_interval: 10                      # seconds
+
+# News configuration
+news:
+  enabled: true
+  provider: "newsapi"                      # "newsapi" - using NewsAPI provider
+  api_key: ""                              # Use environment variable: NEWS_API_KEY
+  headline_limit: 10
+  sentiment_window_minutes: 60
+  include_in_forecast: true
+
+# Database
+storage:
+  database: "storage/market.db"
+  state_file: "storage/state.json"
+  max_cache_days: 30
+  cleanup_interval: 3600                   # seconds
+
+# Logging
+logging:
+  level: "INFO"                            # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_file: "storage/app.log"
+  max_log_size: 10485760                   # 10 MB
+  backup_count: 5
+  log_api_calls: true
+  log_predictions: true
+
+# UI Configuration
+ui:
+  theme: "light"                           # "light" or "dark"
+  default_ticker: "AAPL"
+  watchlist_max: 20
+  chart_height: 500                        # pixels
+  
+  # Tabs to display
+  tabs:
+    - dashboard
+    - ticker_detail
+    - news
+    - validation
+    - settings
+
+# Market configuration
+market:
+  primary_market: "US"                     # Primary market (affects open/close times)
+  default_currencies: ["USD"]
+  check_market_hours: true
