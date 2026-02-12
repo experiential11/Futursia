@@ -183,6 +183,7 @@ class TickerDetailTab(QWidget):
         self._pan_start = None
         self._x_data_bounds = None
         self._y_data_bounds = None
+        self._live_oos_metrics = {}
         self.init_ui()
         self.setup_auto_refresh()
         self.load_ticker()
@@ -665,11 +666,31 @@ class TickerDetailTab(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.load_ticker)
         self.timer.start(15000)  # 15 seconds
+
+        self.scoring_timer = QTimer()
+        self.scoring_timer.timeout.connect(self.run_scoring_cycle)
+        self.scoring_timer.start(60000)  # 60 seconds
+        self.run_scoring_cycle()
     
     def update_refresh_interval(self):
         """Update refresh interval."""
         interval_ms = self.refresh_spin.value() * 1000
         self.timer.setInterval(interval_ms)
+
+    def run_scoring_cycle(self):
+        """Score due forecasts and refresh cached live OOS metrics."""
+        try:
+            score_result = self.forecaster.score_due_forecasts(max_rows=500)
+            self._live_oos_metrics = self.forecaster.get_live_oos_metrics(lookback_hours=24)
+            if score_result and score_result.get('scored', 0) > 0:
+                logger.info(
+                    "Scored %s due forecasts (%s skipped)",
+                    score_result.get('scored', 0),
+                    score_result.get('skipped', 0),
+                )
+        except Exception as e:
+            logger.warning(f"Forecast scoring cycle failed: {e}")
+            self._live_oos_metrics = {}
     
     def on_symbol_changed(self):
         """Handle symbol change."""
@@ -799,6 +820,30 @@ class TickerDetailTab(QWidget):
                 ('High', f"${high:.2f}"),
                 ('Low', f"${low:.2f}"),
             ]
+
+        live_metrics = self._live_oos_metrics or {}
+        live_acc3 = live_metrics.get('accuracy_3class_pct')
+        live_bin = live_metrics.get('accuracy_binary_excl_flat_pct')
+        live_count = live_metrics.get('total_scored', 0)
+        if live_count:
+            stats_data.extend([
+                ('', ''),
+                ('Live OOS (24h, 3-class)', f"{live_acc3:.2f}%"),
+                ('Live OOS (24h, binary)', f"{live_bin:.2f}%" if live_bin is not None else 'N/A'),
+                ('Live Scored Forecasts', str(live_count)),
+            ])
+            symbol_perf = None
+            for row in live_metrics.get('by_symbol', []):
+                if row.get('symbol') == symbol:
+                    symbol_perf = row
+                    break
+            if symbol_perf:
+                stats_data.append(
+                    (
+                        f"{symbol} OOS (3-class)",
+                        f"{float(symbol_perf.get('accuracy_3class_pct', 0.0)):.2f}% ({int(symbol_perf.get('total_scored', 0))} scored)",
+                    )
+                )
 
         self.stats.setRowCount(len(stats_data))
         for row, (metric, value) in enumerate(stats_data):
