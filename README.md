@@ -48,34 +48,6 @@ python main.py
 - Primary entry: `main.py`
 - App module: `app_desktop.py`
 
-## Upgraded Forecasting Pipeline
-
-The app now includes:
-- Pooled cross-symbol training with symbol one-hot encoding
-- Market-pattern features (market proxy returns/volatility, relative strength, rolling beta/correlation)
-- Volatility-normalized target option for improved cross-symbol stability
-- Dynamic volatility-aware FLAT threshold (abstain behavior)
-- Walk-forward validation support with leakage-safe time splits
-- Forecast persistence and realized scoring in `storage/market.db`
-
-## Database Migration (Existing `market.db`)
-
-No manual SQL migration is required.
-
-When the app starts, `MarketDB` auto-migrates the `forecasts` table by adding missing columns (e.g. `horizon_minutes`, `prediction_return_raw`, `prediction_return_norm`, `target_due_at`, realized scoring fields, metadata/version fields).
-
-## Run Walk-Forward Validation
-
-```powershell
-python run_walkforward.py --config configs/config.yaml --out storage/walkforward_report.json
-```
-
-## Run Unit Tests
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
 ## Provider Selection
 
 Edit `configs/config.yaml`:
