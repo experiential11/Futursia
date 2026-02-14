@@ -1,6 +1,6 @@
-﻿"""
-Futursia Forecasting V.1.0 - Desktop Application
-Real-time stock data with live updates, 40-minute forecasting, and forecast graphs.
+"""
+Futursia Desktop Application
+Real-time stock data, 40-minute forecasting, and interactive charts.
 """
 
 import sys
@@ -35,178 +35,25 @@ from core.logging_setup import setup_logging, get_logger
 from core.client_factory import get_market_client
 from core.news_client import NewsClient
 from core.forecasting import ForecasterEngine
+from app_ui import (
+    get_stylesheet,
+    now_est,
+    to_est_text,
+    coerce_timestamp_utc,
+    US_EASTERN_TZ,
+    LOCKED_FAST_REFRESH_MS,
+    APP_FONT_FAMILY,
+    APP_MONO_FONT_FAMILY,
+    GREEN_TEXT,
+    RED_TEXT,
+    NEUTRAL_TEXT,
+)
 
 logger = get_logger()
-
-# Popular stocks
 POPULAR_STOCKS = [
     'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'JNJ', 'V',
     '7203.T', '6758.T', '9984.T', '8306.T', '7974.T'
 ]
-
-US_EASTERN_TZ = pytz.timezone("US/Eastern")
-LOCKED_FAST_REFRESH_MS = 1000
-APP_FONT_FAMILY = "Segoe UI"
-APP_MONO_FONT_FAMILY = "Consolas"
-GREEN_TEXT = "#127a42"
-RED_TEXT = "#ba2e3b"
-NEUTRAL_TEXT = "#254463"
-
-
-def _app_stylesheet():
-    """Global stylesheet for a cleaner, high-contrast desktop UI."""
-    return """
-    QMainWindow, QWidget {
-        background: #f4f7fb;
-        color: #162233;
-        font-family: 'Segoe UI';
-        font-size: 11pt;
-    }
-    QTabWidget::pane {
-        border: 1px solid #cfdaea;
-        border-radius: 12px;
-        background: #edf2f8;
-        top: -1px;
-    }
-    QTabBar::tab {
-        background: #dbe5f2;
-        color: #2b3f57;
-        padding: 10px 16px;
-        min-width: 120px;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
-        margin-right: 4px;
-        font-weight: 600;
-    }
-    QTabBar::tab:selected {
-        background: #ffffff;
-        color: #102740;
-    }
-    QLabel#pageTitle {
-        font-size: 19pt;
-        font-weight: 700;
-        color: #0e2948;
-        padding-bottom: 2px;
-    }
-    QLabel#sectionTitle {
-        font-size: 12pt;
-        font-weight: 700;
-        color: #12375d;
-    }
-    QLabel#mutedText {
-        color: #5a6f87;
-        font-size: 10.5pt;
-    }
-    QLabel#statusPill {
-        background: #e6f0fa;
-        color: #1f4d7a;
-        border: 1px solid #c0d5ec;
-        border-radius: 10px;
-        padding: 4px 9px;
-        font-size: 10pt;
-    }
-    QFrame#card {
-        background: #ffffff;
-        border: 1px solid #d2deec;
-        border-radius: 12px;
-    }
-    QFrame#cardElevated {
-        background: #ffffff;
-        border: 1px solid #c7d8ea;
-        border-radius: 14px;
-    }
-    QComboBox, QSpinBox, QTextEdit, QTableWidget, QListWidget {
-        background: #ffffff;
-        border: 1px solid #c4d4e6;
-        border-radius: 8px;
-        padding: 5px 7px;
-        selection-background-color: #d5e7fb;
-        selection-color: #162233;
-    }
-    QComboBox:focus, QSpinBox:focus, QTextEdit:focus, QTableWidget:focus, QListWidget:focus {
-        border: 2px solid #0d6886;
-    }
-    QPushButton {
-        background: #0d6886;
-        color: #ffffff;
-        border: 0;
-        border-radius: 8px;
-        padding: 7px 12px;
-        min-height: 30px;
-        font-weight: 600;
-    }
-    QPushButton:hover {
-        background: #0b5973;
-    }
-    QPushButton:pressed {
-        background: #094a5f;
-    }
-    QPushButton:focus {
-        border: 2px solid #f39b22;
-    }
-    QHeaderView::section {
-        background: #e8eef7;
-        color: #1d3550;
-        border: 0;
-        border-bottom: 1px solid #cad7e9;
-        padding: 7px;
-        font-weight: 600;
-    }
-    QTableWidget {
-        gridline-color: #e3eaf3;
-    }
-    QTableCornerButton::section {
-        background: #e8eef7;
-        border: 0;
-        border-bottom: 1px solid #cad7e9;
-        border-right: 1px solid #cad7e9;
-    }
-    """
-
-
-def _now_est():
-    """Current timestamp in US/Eastern."""
-    return datetime.now(US_EASTERN_TZ)
-
-
-def _to_est_text(value, fallback="Unknown"):
-    """Convert datetime-like values to US/Eastern display text."""
-    if value is None:
-        return fallback
-    try:
-        if isinstance(value, (int, float)):
-            ts = pd.to_datetime(int(value), unit="s", utc=True, errors="coerce")
-        else:
-            ts = pd.to_datetime(value, utc=True, errors="coerce")
-        if pd.notna(ts):
-            return ts.tz_convert(US_EASTERN_TZ).strftime("%Y-%m-%d %H:%M:%S %Z")
-    except Exception:
-        pass
-    return str(value) if value is not None else fallback
-
-
-def _coerce_timestamp_utc(values):
-    """Parse mixed timestamp inputs into UTC-aware pandas timestamps."""
-    series = pd.Series(values)
-    if series.empty:
-        return pd.to_datetime(series, utc=True, errors="coerce")
-
-    numeric = pd.to_numeric(series, errors="coerce")
-    numeric_ratio = float(numeric.notna().mean()) if len(series) else 0.0
-    if numeric_ratio >= 0.95:
-        non_null = numeric.dropna()
-        abs_max = float(non_null.abs().max()) if not non_null.empty else 0.0
-        if abs_max >= 1e17:
-            unit = "ns"
-        elif abs_max >= 1e14:
-            unit = "us"
-        elif abs_max >= 1e11:
-            unit = "ms"
-        else:
-            unit = "s"
-        return pd.to_datetime(numeric, unit=unit, utc=True, errors="coerce")
-
-    return pd.to_datetime(series, utc=True, errors="coerce")
 
 
 class DashboardTab(QWidget):
@@ -308,7 +155,7 @@ class DashboardTab(QWidget):
             movers = self.client.get_top_movers()
             if movers and len(movers) > 0:
                 self.display_movers(movers)
-                timestamp = _now_est().strftime("%Y-%m-%d %H:%M:%S %Z")
+                timestamp = now_est().strftime("%Y-%m-%d %H:%M:%S %Z")
                 self.status_label.setText(f"Updated: {timestamp}")
             else:
                 self.status_label.setText("No data available")
@@ -571,7 +418,7 @@ class TickerDetailTab(QWidget):
             return
 
         plot_df = bars_df.tail(120).copy()
-        plot_df['timestamp_utc'] = _coerce_timestamp_utc(plot_df['timestamp'])
+        plot_df['timestamp_utc'] = coerce_timestamp_utc(plot_df['timestamp'])
         plot_df = plot_df.dropna(subset=['timestamp_utc', 'close'])
         plot_df['timestamp_est'] = plot_df['timestamp_utc'].dt.tz_convert(US_EASTERN_TZ)
         if plot_df.empty:
@@ -720,7 +567,8 @@ class TickerDetailTab(QWidget):
         try:
             start_ts = pd.Timestamp(mdates.num2date(float(x_min_num), tz=US_EASTERN_TZ))
             end_ts = pd.Timestamp(mdates.num2date(float(x_max_num), tz=US_EASTERN_TZ))
-        except Exception:
+        except Exception as e:
+            logger.debug("Chart session markers: could not parse axis range: %s", e)
             return
         if pd.isna(start_ts) or pd.isna(end_ts) or end_ts <= start_ts:
             return
@@ -808,7 +656,7 @@ class TickerDetailTab(QWidget):
 
             start_timestamp = pd.to_datetime(last_ts, utc=True, errors='coerce')
             if pd.isna(start_timestamp):
-                start_timestamp = _now_est()
+                start_timestamp = now_est()
             else:
                 start_timestamp = start_timestamp.tz_convert(US_EASTERN_TZ).to_pydatetime()
 
@@ -1165,7 +1013,7 @@ class TickerDetailTab(QWidget):
                 )
             self.market_status_label.setText(f"Market: {market_label}")
 
-            timestamp = _now_est().strftime("%Y-%m-%d %H:%M:%S %Z")
+            timestamp = now_est().strftime("%Y-%m-%d %H:%M:%S %Z")
             if not bars_df.empty and 'timestamp' in bars_df.columns:
                 try:
                     last_bar_ts = pd.to_datetime(bars_df['timestamp'].iloc[-1], utc=True, errors='coerce')
@@ -1174,7 +1022,8 @@ class TickerDetailTab(QWidget):
                     self.timestamp_label.setText(
                         f"App update: {timestamp} | Last market print: {last_bar_est} ({age_min}m ago)"
                     )
-                except Exception:
+                except Exception as e:
+                    logger.debug("Ticker timestamp display failed: %s", e)
                     self.timestamp_label.setText(f"Last update: {timestamp}")
             else:
                 self.timestamp_label.setText(f"Last update: {timestamp}")
@@ -1439,25 +1288,25 @@ class NewsTab(QWidget):
     
     def display_demo_news(self, symbol: str):
         """Display demo news when API unavailable."""
-        now_est = _now_est()
+        now_est_dt = now_est()
         demo_headlines = [
             {
                 'headline': f'{symbol} gains momentum as analysts revise price targets',
                 'source': 'MarketWatch',
                 'summary': f'{symbol} experienced strong trading activity today with institutional interest',
-                'datetime': now_est.strftime('%Y-%m-%d %H:%M:%S %Z')
+                'datetime': now_est_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
             },
             {
                 'headline': f'Tech sector rally pushes {symbol} higher',
                 'source': 'Bloomberg',
                 'summary': 'Broad tech rally supports gains across major indices',
-                'datetime': (now_est - timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S %Z')
+                'datetime': (now_est_dt - timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S %Z')
             },
             {
                 'headline': f'{symbol} Q4 earnings beat expectations',
                 'source': 'Reuters',
                 'summary': 'Company delivers strong quarter with revenue growth acceleration',
-                'datetime': (now_est - timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S %Z')
+                'datetime': (now_est_dt - timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S %Z')
             },
         ]
         self.display_news(demo_headlines)
@@ -1470,7 +1319,7 @@ class NewsTab(QWidget):
             summary = html.escape(str(headline.get('summary') or headline.get('text', 'No summary available')))
             source = html.escape(str(headline.get('source', 'Unknown')))
             raw_dt = headline.get('datetime') or headline.get('timestamp')
-            date_text = html.escape(_to_est_text(raw_dt, fallback='Unknown'))
+            date_text = html.escape(to_est_text(raw_dt, fallback="Unknown"))
 
             cards.append(
                 f"""
@@ -1624,7 +1473,7 @@ def main():
     """Main entry point."""
     app = QApplication(sys.argv)
     app.setFont(QFont(APP_FONT_FAMILY, 10))
-    app.setStyleSheet(_app_stylesheet())
+    app.setStyleSheet(get_stylesheet())
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
