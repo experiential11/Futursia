@@ -1,5 +1,5 @@
-# Massive 40-Minute Forecaster Configuration
-# ==============================================
+# Futursia Forecaster Configuration
+# ==================================
 
 # Market API provider selection
 market_api_provider: "yfinance"   # options: 'databento', 'fmp', 'finnhub', or 'yfinance'

@@ -12,7 +12,7 @@ Desktop stock forecasting app with:
 
 ```powershell
 git clone <your-repo-url>
-cd massive_40min_forecaster_exe
+cd Futursia
 ```
 
 2. Create and activate a virtual environment:

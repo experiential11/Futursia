@@ -2,61 +2,134 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 
+from core.logging_setup import get_logger
+
+logger = get_logger()
+
+# Interval constants: z-scores for 50% and 90% normal intervals
+Z_50 = 0.6745
+Z_90 = 1.645
+MIN_RESIDUALS_FOR_INTERVALS = 10
+# Fallback bands when we have too few residuals (multiplicative)
+FALLBACK_LOWER_50 = 0.98
+FALLBACK_UPPER_50 = 1.02
+FALLBACK_LOWER_90 = 0.95
+FALLBACK_UPPER_90 = 1.05
+# Minimum residual std to avoid degenerate intervals
+RESIDUAL_STD_FLOOR = 1e-9
+
+
+def _pred_to_scalar(pred: Union[float, np.ndarray]) -> float:
+    """Convert model prediction output to a single float."""
+    if hasattr(pred, "__len__") and len(pred) > 0:
+        return float(pred[0])
+    return float(pred)
+
+
+def _intervals_from_residuals(
+    mean: float,
+    residuals: np.ndarray,
+    use_robust_std: bool = True,
+) -> Dict[str, float]:
+    """
+    Build 50% and 90% interval dict from point prediction and residuals.
+    Uses sample std (ddof=1) when use_robust_std is True for a less biased estimate.
+    """
+    n = len(residuals) if hasattr(residuals, "__len__") else 0
+    if n < MIN_RESIDUALS_FOR_INTERVALS:
+        return {
+            "mean": mean,
+            "lower_50": mean * FALLBACK_LOWER_50,
+            "upper_50": mean * FALLBACK_UPPER_50,
+            "lower_90": mean * FALLBACK_LOWER_90,
+            "upper_90": mean * FALLBACK_UPPER_90,
+        }
+    res = np.asarray(residuals, dtype=float)
+    res = res[np.isfinite(res)]
+    if len(res) < MIN_RESIDUALS_FOR_INTERVALS:
+        return {
+            "mean": mean,
+            "lower_50": mean * FALLBACK_LOWER_50,
+            "upper_50": mean * FALLBACK_UPPER_50,
+            "lower_90": mean * FALLBACK_LOWER_90,
+            "upper_90": mean * FALLBACK_UPPER_90,
+        }
+    residual_std = np.std(res, ddof=1) if use_robust_std else np.std(res)
+    residual_std = max(float(residual_std), RESIDUAL_STD_FLOOR)
+    return {
+        "mean": mean,
+        "lower_50": mean - Z_50 * residual_std,
+        "upper_50": mean + Z_50 * residual_std,
+        "lower_90": mean - Z_90 * residual_std,
+        "upper_90": mean + Z_90 * residual_std,
+    }
+
+
+def _intervals_fallback(mean: float) -> Dict[str, float]:
+    """Fallback intervals when residuals are unavailable."""
+    return {
+        "mean": mean,
+        "lower_50": mean * FALLBACK_LOWER_50,
+        "upper_50": mean * FALLBACK_UPPER_50,
+        "lower_90": mean * FALLBACK_LOWER_90,
+        "upper_90": mean * FALLBACK_UPPER_90,
+    }
+
 
 class ForecastModel:
     """Base class for forecast models."""
 
-    def __init__(self, config):
+    def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config.get("forecast", {})
         self.horizon_minutes = self.config.get("horizon_minutes", 40)
         self.min_bars = self.config.get("min_bars_for_forecast", 100)
 
     def train(
         self,
-        X,
-        y,
-        sample_weight=None,
+        X: np.ndarray,
+        y: np.ndarray,
+        sample_weight: Optional[np.ndarray] = None,
         eval_set: Optional[Tuple[np.ndarray, np.ndarray]] = None,
-        eval_sample_weight=None,
-    ):
-        """Train the model."""
+        eval_sample_weight: Optional[np.ndarray] = None,
+    ) -> bool:
+        """Train the model. Returns True on success."""
         raise NotImplementedError
 
-    def predict(self, X):
-        """Make predictions."""
+    def predict(self, X: np.ndarray) -> Union[float, np.ndarray]:
+        """Return point prediction(s)."""
         raise NotImplementedError
 
-    def predict_intervals(self, X):
-        """Predict with confidence intervals."""
+    def predict_intervals(self, X: np.ndarray) -> Dict[str, float]:
+        """Return dict with mean, lower_50, upper_50, lower_90, upper_90."""
         raise NotImplementedError
 
 
 class RidgeForecaster(ForecastModel):
-    """Ridge regression forecaster."""
+    """Ridge regression forecaster. Features are scaled before fit/predict."""
 
-    def __init__(self, config):
+    def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         ridge_cfg = self.config.get("ridge", {})
         alpha = float(ridge_cfg.get("alpha", 1.0))
         self.model = Ridge(alpha=alpha)
         self.scaler = StandardScaler()
-        self.residuals = []
+        self.residuals: np.ndarray = np.array([], dtype=float)
         self._is_trained = False
 
     def train(
         self,
-        X,
-        y,
-        sample_weight=None,
+        X: np.ndarray,
+        y: np.ndarray,
+        sample_weight: Optional[np.ndarray] = None,
         eval_set: Optional[Tuple[np.ndarray, np.ndarray]] = None,
-        eval_sample_weight=None,
-    ):
+        eval_sample_weight: Optional[np.ndarray] = None,
+    ) -> bool:
         if X.shape[0] < 10:
             return False
 
@@ -78,10 +151,11 @@ class RidgeForecaster(ForecastModel):
             self.residuals = y_arr - self.model.predict(X_scaled)
             self._is_trained = True
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("RidgeForecaster train failed: %s", e)
             return False
 
-    def predict(self, X):
+    def predict(self, X: np.ndarray) -> Union[float, np.ndarray]:
         if not self._is_trained:
             return 0.0
 
@@ -91,34 +165,18 @@ class RidgeForecaster(ForecastModel):
         X_scaled = self.scaler.transform(X_arr)
         return self.model.predict(X_scaled)
 
-    def predict_intervals(self, X):
+    def predict_intervals(self, X: np.ndarray) -> Dict[str, float]:
         pred = self.predict(X)
-        pred_scalar = float(pred[0]) if hasattr(pred, "__len__") else float(pred)
-        if not self._is_trained or len(self.residuals) < 10:
-            return {
-                "mean": pred_scalar,
-                "lower_50": pred_scalar * 0.98,
-                "upper_50": pred_scalar * 1.02,
-                "lower_90": pred_scalar * 0.95,
-                "upper_90": pred_scalar * 1.05,
-            }
-
-        residual_std = float(np.std(self.residuals))
-        z_50 = 0.6745
-        z_90 = 1.645
-        return {
-            "mean": pred_scalar,
-            "lower_50": pred_scalar - z_50 * residual_std,
-            "upper_50": pred_scalar + z_50 * residual_std,
-            "lower_90": pred_scalar - z_90 * residual_std,
-            "upper_90": pred_scalar + z_90 * residual_std,
-        }
+        mean = _pred_to_scalar(pred)
+        if not self._is_trained:
+            return _intervals_fallback(mean)
+        return _intervals_from_residuals(mean, self.residuals)
 
 
 class XGBoostForecaster(ForecastModel):
-    """XGBoost forecaster with optional early stopping."""
+    """XGBoost forecaster with optional early stopping. Uses raw (unscaled) features."""
 
-    def __init__(self, config):
+    def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         xgb_cfg = self.config.get("xgboost", {})
         self.early_stopping_rounds = int(xgb_cfg.get("early_stopping_rounds", 40))
@@ -143,22 +201,23 @@ class XGBoostForecaster(ForecastModel):
                 verbosity=0,
             )
             self.available = True
-        except Exception:
+        except Exception as e:
+            logger.warning("XGBoostForecaster init failed, using Ridge fallback: %s", e)
             self.model = None
             self.available = False
             self.fallback = RidgeForecaster(config)
 
-        self.residuals = []
+        self.residuals = np.array([], dtype=float)
         self._is_trained = False
 
     def train(
         self,
-        X,
-        y,
-        sample_weight=None,
+        X: np.ndarray,
+        y: np.ndarray,
+        sample_weight: Optional[np.ndarray] = None,
         eval_set: Optional[Tuple[np.ndarray, np.ndarray]] = None,
-        eval_sample_weight=None,
-    ):
+        eval_sample_weight: Optional[np.ndarray] = None,
+    ) -> bool:
         if not self.available:
             return self.fallback.train(
                 X,
@@ -180,7 +239,7 @@ class XGBoostForecaster(ForecastModel):
             if len(X_arr) < 30:
                 return False
 
-            fit_kwargs = {
+            fit_kwargs: Dict[str, Any] = {
                 "verbose": False,
                 "eval_metric": self.eval_metric,
             }
@@ -205,10 +264,11 @@ class XGBoostForecaster(ForecastModel):
             self.residuals = y_arr - self.model.predict(X_arr)
             self._is_trained = True
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("XGBoostForecaster train failed: %s", e)
             return False
 
-    def predict(self, X):
+    def predict(self, X: np.ndarray) -> Union[float, np.ndarray]:
         if not self.available:
             return self.fallback.predict(X)
         if not self._is_trained:
@@ -219,34 +279,18 @@ class XGBoostForecaster(ForecastModel):
             X_arr = X_arr.reshape(1, -1)
         return self.model.predict(X_arr)
 
-    def predict_intervals(self, X):
+    def predict_intervals(self, X: np.ndarray) -> Dict[str, float]:
         if not self.available:
             return self.fallback.predict_intervals(X)
         pred = self.predict(X)
-        pred_scalar = float(pred[0]) if hasattr(pred, "__len__") else float(pred)
-        if len(self.residuals) < 10:
-            return {
-                "mean": pred_scalar,
-                "lower_50": pred_scalar * 0.98,
-                "upper_50": pred_scalar * 1.02,
-                "lower_90": pred_scalar * 0.95,
-                "upper_90": pred_scalar * 1.05,
-            }
-
-        residual_std = float(np.std(self.residuals))
-        z_50 = 0.6745
-        z_90 = 1.645
-        return {
-            "mean": pred_scalar,
-            "lower_50": pred_scalar - z_50 * residual_std,
-            "upper_50": pred_scalar + z_50 * residual_std,
-            "lower_90": pred_scalar - z_90 * residual_std,
-            "upper_90": pred_scalar + z_90 * residual_std,
-        }
+        mean = _pred_to_scalar(pred)
+        if len(self.residuals) < MIN_RESIDUALS_FOR_INTERVALS:
+            return _intervals_fallback(mean)
+        return _intervals_from_residuals(mean, self.residuals)
 
 
-def get_model(model_name, config):
-    """Return a configured model implementation."""
+def get_model(model_name: str, config: Dict[str, Any]) -> ForecastModel:
+    """Return a configured forecaster. Supports 'ridge' and 'xgboost' (case-insensitive)."""
     if str(model_name).lower() == "xgboost":
         return XGBoostForecaster(config)
     return RidgeForecaster(config)

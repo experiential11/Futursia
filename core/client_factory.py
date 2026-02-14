@@ -13,10 +13,8 @@ def get_market_client(config: Dict):
     """Return a market data client instance depending on configuration.
 
     Preference order:
-      - Explicit `market_api_provider` value if provided
-      - Databento if databento config exists
-      - FMP if fmp config exists
-      - Else Finnhub
+      - Explicit `market_api_provider` value if provided (databento, fmp, finnhub, yfinance)
+      - Else first available: databento_api -> fmp_api -> yfinance_api -> finnhub (default)
     """
     provider = (config.get('market_api_provider') or '').strip().lower()
 
