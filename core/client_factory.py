@@ -3,7 +3,6 @@ from typing import Dict
 import logging
 from .finnhub_client import FinnhubClient
 from .fmp_client import FMPClient
-from .databento_client import DatabentoClient
 from .yfinance_client import YFinanceClient
 
 logger = logging.getLogger(__name__)
@@ -13,14 +12,13 @@ def get_market_client(config: Dict):
     """Return a market data client instance depending on configuration.
 
     Preference order:
-      - Explicit `market_api_provider` value if provided (databento, fmp, finnhub, yfinance)
-      - Else first available: databento_api -> fmp_api -> yfinance_api -> finnhub (default)
+      - Explicit `market_api_provider` value if provided
+      - FMP if fmp config exists
+      - YFinance if yfinance config exists
+      - Else Finnhub
     """
     provider = (config.get('market_api_provider') or '').strip().lower()
 
-    if provider == 'databento':
-        logger.info("Using DatabentoClient as market data provider (explicit)")
-        return DatabentoClient(config)
     if provider == 'fmp':
         logger.info("Using FMPClient as market data provider (explicit)")
         return FMPClient(config)
@@ -30,10 +28,10 @@ def get_market_client(config: Dict):
     if provider == 'yfinance':
         logger.info("Using YFinanceClient as market data provider (explicit)")
         return YFinanceClient(config)
+    if provider == 'databento':
+        logger.warning("Databento provider disabled; falling back to YFinanceClient")
+        return YFinanceClient(config)
 
-    if config.get('databento_api'):
-        logger.info("Using DatabentoClient as market data provider (fallback)")
-        return DatabentoClient(config)
     if config.get('fmp_api'):
         logger.info("Using FMPClient as market data provider (fallback)")
         return FMPClient(config)
