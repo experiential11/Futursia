@@ -2,6 +2,8 @@ const state = {
   symbol: "AAPL",
   settings: null,
   symbolNames: {},
+  symbolList: [],
+  filteredSymbolList: [],
   refresh: {
     tickerPollMs: 1000,
     tickerTimerId: null,
@@ -37,6 +39,25 @@ function getSymbolName(symbol) {
 function getSymbolLabel(symbol) {
   const name = getSymbolName(symbol);
   return name ? `${symbol} - ${name}` : String(symbol || "");
+}
+
+function getSymbolDisplayName(symbol) {
+  if (!symbol) return "";
+  const s = String(symbol).toUpperCase();
+  return getSymbolName(s) || s;
+}
+
+function getSymbolProminentLabel(symbol) {
+  if (!symbol) return "";
+  const s = String(symbol).toUpperCase();
+  const fullName = getSymbolName(s);
+  return fullName ? `${fullName} (${s})` : s;
+}
+
+function updateSelectedSymbolHeader(symbol = state.symbol) {
+  const el = document.getElementById("tickerSelectedSymbol");
+  if (!el) return;
+  el.textContent = getSymbolProminentLabel(symbol) || "-";
 }
 
 function formatMoney(value) {
@@ -97,43 +118,140 @@ async function getJson(url) {
 }
 
 function updateLastUpdated(text) {
-  const pill = document.getElementById("lastUpdatedPill");
-  if (pill) pill.textContent = text;
+  const el = document.getElementById("tickerUpdated");
+  if (el) el.textContent = text;
+}
+
+function announceToScreenReader(message) {
+  const el = document.getElementById("srStatus");
+  if (!el) return;
+  el.textContent = "";
+  requestAnimationFrame(() => {
+    el.textContent = message;
+  });
+}
+
+function setActiveTab(targetTab) {
+  const tabs = document.querySelectorAll(".tab");
+  const panels = document.querySelectorAll(".panel");
+  if (!targetTab) return;
+
+  tabs.forEach((tab) => {
+    const isActive = tab === targetTab;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", isActive ? "true" : "false");
+    tab.setAttribute("tabindex", isActive ? "0" : "-1");
+  });
+
+  panels.forEach((panel) => {
+    const isActive = panel.id === targetTab.getAttribute("data-panel");
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  });
 }
 
 function activateTabs() {
   const tabs = document.querySelectorAll(".tab");
-  const panels = document.querySelectorAll(".panel");
+  if (!tabs.length) return;
+
+  const active = document.querySelector(".tab.is-active") || tabs[0];
+  setActiveTab(active);
 
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      const panelId = tab.getAttribute("data-panel");
-      tabs.forEach((x) => x.classList.remove("is-active"));
-      panels.forEach((p) => p.classList.remove("is-active"));
-      tab.classList.add("is-active");
-      const panel = document.getElementById(panelId);
-      if (panel) panel.classList.add("is-active");
+      setActiveTab(tab);
+    });
+
+    tab.addEventListener("keydown", (event) => {
+      const currentIndex = Array.from(tabs).indexOf(tab);
+      let nextIndex = currentIndex;
+
+      if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+      if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = tabs.length - 1;
+      if (nextIndex === currentIndex) return;
+
+      event.preventDefault();
+      const nextTab = tabs[nextIndex];
+      setActiveTab(nextTab);
+      nextTab.focus();
     });
   });
 }
 
-function populateSymbols(symbols) {
-  const select = document.getElementById("symbolSelect");
+function renderSymbolOptions(symbols) {
+  const select = document.getElementById("tickerSelect");
+  if (!select) return;
+
   select.innerHTML = "";
+  if (!Array.isArray(symbols) || symbols.length === 0) {
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "No matching stocks";
+    empty.disabled = true;
+    empty.selected = true;
+    select.appendChild(empty);
+    return;
+  }
 
   symbols.forEach((symbol) => {
     const option = document.createElement("option");
     option.value = symbol;
-    option.textContent = getSymbolLabel(symbol);
+    option.textContent = getSymbolProminentLabel(symbol);
     select.appendChild(option);
   });
 
   if (symbols.includes(state.symbol)) {
     select.value = state.symbol;
-  } else if (symbols.length > 0) {
-    state.symbol = symbols[0];
-    select.value = state.symbol;
+  } else {
+    select.value = symbols[0];
   }
+}
+
+function filterSymbolsByQuery(query) {
+  const term = String(query || "").trim().toLowerCase();
+  if (!term) return [...state.symbolList];
+  return state.symbolList.filter((symbol) => {
+    const s = String(symbol || "").toUpperCase();
+    const fullName = getSymbolName(s);
+    return s.toLowerCase().includes(term) || fullName.toLowerCase().includes(term);
+  });
+}
+
+function applySymbolSearch(query) {
+  state.filteredSymbolList = filterSymbolsByQuery(query);
+  renderSymbolOptions(state.filteredSymbolList);
+}
+
+function populateSymbols(symbols) {
+  state.symbolList = Array.isArray(symbols) ? [...symbols] : [];
+  if (state.symbolList.length && !state.symbolList.includes(state.symbol)) {
+    state.symbol = state.symbolList[0];
+  }
+
+  const search = document.getElementById("tickerSearch");
+  applySymbolSearch(search ? search.value : "");
+  updateSelectedSymbolHeader(state.symbol);
+}
+
+async function selectSymbol(symbol) {
+  if (!symbol || symbol === state.symbol) return;
+  state.symbol = symbol;
+  state.chart.manualView = false;
+  state.chart.viewMinTs = null;
+  state.chart.viewMaxTs = null;
+  updateSelectedSymbolHeader(symbol);
+
+  const select = document.getElementById("tickerSelect");
+  if (select) select.value = symbol;
+
+  updateLastUpdated(`Loading ${getSymbolDisplayName(symbol)}...`);
+  await Promise.all([
+    safeLoad("ticker", loadTicker, { force: true }),
+    safeLoad("news", loadNews, { force: true }),
+  ]);
+  scheduleTickerRefresh();
 }
 
 function renderMovers(data) {
@@ -141,14 +259,19 @@ function renderMovers(data) {
   tbody.innerHTML = "";
   const movers = data.movers || [];
 
+  if (!movers.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="6">No movers available yet.</td>`;
+    tbody.appendChild(tr);
+  }
+
   movers.forEach((row) => {
     const tr = document.createElement("tr");
     const pctClass = row.percent_change >= 0 ? "txt-up" : "txt-down";
     const symbol = row.symbol || "-";
-    const name = row.name || getSymbolName(symbol);
-    const symbolCell = name ? `${symbol} - ${name}` : symbol;
+    const displayName = getSymbolDisplayName(symbol) || symbol;
     tr.innerHTML = `
-      <td>${symbolCell}</td>
+      <td>${displayName}</td>
       <td>${formatMoney(row.price)}</td>
       <td>${formatSigned(row.change, 2)}</td>
       <td class="${pctClass}">${formatPercent(row.percent_change, 2)}</td>
@@ -252,9 +375,12 @@ function renderTicker(data) {
   );
   updateText("oosMae", metrics.mae_return != null ? Number(metrics.mae_return).toFixed(6) : "-");
 
-  const stampSymbol = data.symbol_name ? `${state.symbol} (${data.symbol_name})` : getSymbolLabel(state.symbol);
-  const stamp = `${data.updated_at_est || "-"} | ${stampSymbol}`;
-  updateLastUpdated(stamp);
+  const displayName = getSymbolProminentLabel(state.symbol);
+  updateLastUpdated(data.updated_at_est || "-");
+  document.title = `${displayName} | Futursia`;
+  updateSelectedSymbolHeader(state.symbol);
+  const select = document.getElementById("tickerSelect");
+  if (select) select.value = state.symbol;
   drawChart(data.bars || [], data.forecast_path || []);
 }
 
@@ -266,6 +392,7 @@ function renderNews(data) {
   if (headlines.length === 0) {
     const empty = document.createElement("div");
     empty.className = "news-item";
+    empty.setAttribute("role", "listitem");
     empty.textContent = "No headlines available.";
     list.appendChild(empty);
   }
@@ -273,6 +400,7 @@ function renderNews(data) {
   headlines.forEach((item) => {
     const card = document.createElement("article");
     card.className = "news-item";
+    card.setAttribute("role", "listitem");
 
     const title = document.createElement("h3");
     title.textContent = item.title || "Untitled";
@@ -293,6 +421,7 @@ function renderNews(data) {
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.textContent = "Open source";
+      link.setAttribute("aria-label", `Open source: ${item.title || "headline"}`);
       card.appendChild(link);
     }
 
@@ -303,8 +432,10 @@ function renderNews(data) {
 }
 
 function getChartLayout() {
-  const width = 960;
-  const height = 360;
+  const svg = document.getElementById("priceChart");
+  const rect = svg ? svg.getBoundingClientRect() : null;
+  const width = Math.max(480, Math.round(rect?.width || 960));
+  const height = Math.max(280, Math.round(rect?.height || 360));
   const padLeft = 56;
   const padRight = 12;
   const padTop = 10;
@@ -331,6 +462,23 @@ function parseTimeMs(value) {
   return Number.isFinite(ts) ? ts : null;
 }
 
+function inferMedianStepMs(rows, fallbackMs = 60 * 1000) {
+  const times = (rows || [])
+    .map((row) => Number(row.t))
+    .filter((ts) => Number.isFinite(ts))
+    .sort((a, b) => a - b);
+  const deltas = [];
+  for (let i = 1; i < times.length; i += 1) {
+    const delta = times[i] - times[i - 1];
+    if (delta > 0) deltas.push(delta);
+  }
+  if (!deltas.length) {
+    return Number.isFinite(fallbackMs) ? fallbackMs : 60 * 1000;
+  }
+  deltas.sort((a, b) => a - b);
+  return deltas[Math.floor(deltas.length / 2)];
+}
+
 function normalizeLiveCandles(bars) {
   return (bars || [])
     .map((bar) => {
@@ -340,13 +488,14 @@ function normalizeLiveCandles(bars) {
       const low = parseNumber(bar.low);
       const close = parseNumber(bar.close);
       if (t == null || open == null || high == null || low == null || close == null) return null;
+      if (open < 0 || high < 0 || low < 0 || close < 0) return null;
       return { t, open, high, low, close };
     })
     .filter(Boolean)
     .sort((a, b) => a.t - b.t);
 }
 
-function normalizeForecastCandles(forecastPath) {
+function normalizeForecastCandles(forecastPath, liveBars = []) {
   const points = (forecastPath || [])
     .map((row) => {
       const t = parseTimeMs(row.timestamp);
@@ -356,15 +505,29 @@ function normalizeForecastCandles(forecastPath) {
     })
     .filter(Boolean)
     .sort((a, b) => a.t - b.t);
+  if (points.length < 2) return [];
+
+  const lastLiveTs = liveBars.length ? Number(liveBars[liveBars.length - 1].t) : null;
+  const liveStepMs = inferMedianStepMs(liveBars, null);
+  const forecastStepMs = inferMedianStepMs(points, 60 * 1000);
+  const stepMs = Number.isFinite(liveStepMs) && liveStepMs > 0 ? liveStepMs : forecastStepMs;
+
+  const firstForecastTs = Number(points[1]?.t);
+  const expectedFirstTs = Number.isFinite(lastLiveTs) ? lastLiveTs + stepMs : firstForecastTs;
+  const shouldRealign =
+    Number.isFinite(lastLiveTs) &&
+    Number.isFinite(firstForecastTs) &&
+    (firstForecastTs <= lastLiveTs || Math.abs(firstForecastTs - expectedFirstTs) > stepMs * 1.5);
 
   const candles = [];
   for (let i = 1; i < points.length; i += 1) {
-    const prev = points[i - 1];
     const curr = points[i];
+    const prev = points[i - 1];
     const open = prev.price;
     const close = curr.price;
+    if (!Number.isFinite(open) || !Number.isFinite(close) || open < 0 || close < 0) continue;
     candles.push({
-      t: curr.t,
+      t: shouldRealign ? lastLiveTs + i * stepMs : curr.t,
       open,
       high: Math.max(open, close),
       low: Math.min(open, close),
@@ -397,8 +560,16 @@ function getChartDataStats() {
 function fitChartToData() {
   const stats = getChartDataStats();
   if (!stats) return;
-  state.chart.viewMinTs = stats.minTs - stats.padMs;
-  state.chart.viewMaxTs = stats.maxTs + stats.padMs;
+  const hasForecast = state.chart.forecastBars.length > 0;
+  if (hasForecast) {
+    const maxTs = stats.maxTs;
+    const threeHoursMs = 3 * 60 * 60 * 1000;
+    state.chart.viewMinTs = Math.max(stats.minTs, maxTs - threeHoursMs);
+    state.chart.viewMaxTs = maxTs;
+  } else {
+    state.chart.viewMinTs = stats.minTs - stats.padMs;
+    state.chart.viewMaxTs = stats.maxTs;
+  }
   state.chart.manualView = false;
 }
 
@@ -491,6 +662,7 @@ function renderChartFromState() {
   svg.innerHTML = "";
 
   const layout = getChartLayout();
+  svg.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
   const stats = getChartDataStats();
   if (!stats) {
     renderChartMessage("Not enough chart data yet");
@@ -510,17 +682,26 @@ function renderChartFromState() {
     return;
   }
 
-  let minP = Math.min(...visible.map((row) => row.low));
-  let maxP = Math.max(...visible.map((row) => row.high));
+  const isValidPriceBar = (row) =>
+    Number.isFinite(row.low) &&
+    Number.isFinite(row.high) &&
+    row.low > 0 &&
+    row.high > 0;
+  const validForRange = visible.filter(isValidPriceBar);
+  const source = validForRange.length ? validForRange : visible;
+
+  let minP = Math.min(...source.map((row) => row.low));
+  let maxP = Math.max(...source.map((row) => row.high));
   if (!Number.isFinite(minP) || !Number.isFinite(maxP)) {
     renderChartMessage("Not enough chart data yet");
     return;
   }
+  minP = Math.max(0, minP);
   if (maxP <= minP) {
-    maxP = minP + Math.max(Math.abs(minP) * 0.01, 0.1);
+    maxP = minP + Math.max(minP * 0.01, 0.1);
   }
-  const padP = (maxP - minP) * 0.1;
-  minP -= padP;
+  const padP = Math.max((maxP - minP) * 0.08, minP * 0.002);
+  minP = Math.max(0, minP - padP);
   maxP += padP;
 
   const x = (t) => layout.padLeft + ((t - minT) / rangeT) * layout.innerW;
@@ -643,12 +824,14 @@ function renderChartFromState() {
   }
 
   liveVisible.forEach((row) => {
+    if (!isValidPriceBar(row)) return;
     const color = row.close >= row.open ? "#25c26e" : "#ef5350";
     drawCandle(row, color, baseBarWidth, 0.95);
   });
 
-  const forecastBarWidth = Math.max(2, baseBarWidth * 0.78);
+  const forecastBarWidth = baseBarWidth;
   forecastVisible.forEach((row) => {
+    if (!isValidPriceBar(row)) return;
     drawCandle(row, "#ff9f43", forecastBarWidth, 0.9);
   });
 }
@@ -732,6 +915,18 @@ function setupChartInteractions() {
   svg.addEventListener("pointerup", stopDrag);
   svg.addEventListener("pointercancel", stopDrag);
   svg.addEventListener("dblclick", () => resetChartView());
+  svg.addEventListener("keydown", (event) => {
+    if (event.key === "+" || event.key === "=") {
+      event.preventDefault();
+      zoomChart(0.85, 0.5);
+    } else if (event.key === "-" || event.key === "_") {
+      event.preventDefault();
+      zoomChart(1.15, 0.5);
+    } else if (event.key === "0") {
+      event.preventDefault();
+      resetChartView();
+    }
+  });
 
   const zoomInBtn = document.getElementById("chartZoomInBtn");
   if (zoomInBtn) zoomInBtn.addEventListener("click", () => zoomChart(0.85, 0.5));
@@ -744,8 +939,9 @@ function setupChartInteractions() {
 }
 
 function drawChart(bars, forecastPath) {
-  state.chart.liveBars = normalizeLiveCandles(bars);
-  state.chart.forecastBars = normalizeForecastCandles(forecastPath);
+  const liveBars = normalizeLiveCandles(bars);
+  state.chart.liveBars = liveBars;
+  state.chart.forecastBars = normalizeForecastCandles(forecastPath, liveBars);
 
   if (!state.chart.liveBars.length && !state.chart.forecastBars.length) {
     renderChartMessage("Not enough chart data yet");
@@ -767,6 +963,7 @@ async function safeLoad(name, fn, options = {}) {
   } catch (error) {
     console.error(`${name} refresh failed`, error);
     updateLastUpdated(`Error: ${error.message}`);
+    announceToScreenReader(`Error: ${error.message}`);
   } finally {
     if (!force) state.pending[name] = false;
   }
@@ -830,25 +1027,43 @@ function scheduleTickerRefresh() {
 }
 
 function wireEvents() {
-  const select = document.getElementById("symbolSelect");
-  select.addEventListener("change", async (event) => {
-    state.symbol = event.target.value;
-    state.chart.manualView = false;
-    state.chart.viewMinTs = null;
-    state.chart.viewMaxTs = null;
-    updateLastUpdated(`Loading ${state.symbol}...`);
-    await Promise.all([
-      safeLoad("ticker", loadTicker, { force: true }),
-      safeLoad("news", loadNews, { force: true }),
-    ]);
-    scheduleTickerRefresh();
-  });
+  const search = document.getElementById("tickerSearch");
+  if (search) {
+    search.addEventListener("input", (e) => {
+      applySymbolSearch(e.target.value);
+    });
+    search.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const first = state.filteredSymbolList[0];
+        if (!first) return;
+        e.preventDefault();
+        selectSymbol(first);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        search.value = "";
+        applySymbolSearch("");
+      }
+    });
+  }
+
+  const select = document.getElementById("tickerSelect");
+  if (select) {
+    select.addEventListener("change", (e) => {
+      const symbol = e.target.value;
+      if (symbol) selectSymbol(symbol);
+    });
+  }
 }
 
 async function init() {
   activateTabs();
   wireEvents();
   setupChartInteractions();
+  window.addEventListener("resize", () => {
+    if (state.chart.liveBars.length || state.chart.forecastBars.length) {
+      renderChartFromState();
+    }
+  });
   await loadSettings();
   await refreshAll();
 
@@ -866,5 +1081,6 @@ window.addEventListener("DOMContentLoaded", () => {
   init().catch((error) => {
     console.error("Initialization failed", error);
     updateLastUpdated(`Initialization failed: ${error.message}`);
+    announceToScreenReader(`Initialization failed: ${error.message}`);
   });
 });

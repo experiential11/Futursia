@@ -48,4 +48,4 @@ npm run dev
 
 - Config file: `configs/config.yaml`
 - Provider is configured as `yfinance`.
-- Nikkei symbol names are included and displayed in the UI.
+- A broad North American watchlist (US + Canada) is configured and displayed in the UI.

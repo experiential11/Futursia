@@ -1,52 +1,45 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Futursia live market dashboard with forecasting, chart navigation, and headlines.">
+  <meta name="theme-color" content="#080d14">
   <title>Futursia Forecasting Web</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css">
 </head>
 <body>
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div id="srStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="bg-orb bg-orb-a"></div>
   <div class="bg-orb bg-orb-b"></div>
-  <main class="app-shell">
-    <header class="hero">
-      <div class="hero-copy">
-        <h1>Futursia Forecasting Site</h1>
-        <p>Website-only edition. Live movers, ticker detail, 40-minute forecast path, and headlines.</p>
-      </div>
-      <div class="hero-controls">
-        <label for="symbolSelect">Ticker</label>
-        <select id="symbolSelect"></select>
-        <span id="lastUpdatedPill">Waiting for data...</span>
-      </div>
-    </header>
-
-    <nav class="tabs" aria-label="Sections">
-      <button class="tab is-active" data-panel="dashboardPanel" type="button">Dashboard</button>
-      <button class="tab" data-panel="tickerPanel" type="button">Ticker Detail</button>
-      <button class="tab" data-panel="newsPanel" type="button">News</button>
-      <button class="tab" data-panel="settingsPanel" type="button">Settings</button>
+  <main class="app-shell" id="mainContent">
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab is-active" id="tab-dashboard" data-panel="dashboardPanel" type="button" role="tab" aria-selected="true" aria-controls="dashboardPanel">Dashboard</button>
+      <button class="tab" id="tab-ticker" data-panel="tickerPanel" type="button" role="tab" aria-selected="false" aria-controls="tickerPanel">Ticker Detail</button>
+      <button class="tab" id="tab-news" data-panel="newsPanel" type="button" role="tab" aria-selected="false" aria-controls="newsPanel">News</button>
+      <button class="tab" id="tab-settings" data-panel="settingsPanel" type="button" role="tab" aria-selected="false" aria-controls="settingsPanel">Settings</button>
     </nav>
 
-    <section class="panel is-active" id="dashboardPanel">
+    <section class="panel is-active" id="dashboardPanel" role="tabpanel" aria-labelledby="tab-dashboard">
       <div class="panel-head">
         <h2>Top Movers</h2>
-        <span id="dashboardUpdated">-</span>
+        <span id="dashboardUpdated" aria-live="polite">-</span>
       </div>
       <div class="table-wrap">
         <table id="moversTable">
+          <caption class="sr-only">Top movers table with symbol, price, and daily change</caption>
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Price</th>
-              <th>Change $</th>
-              <th>Change %</th>
-              <th>High</th>
-              <th>Low</th>
+              <th scope="col">Symbol</th>
+              <th scope="col">Price</th>
+              <th scope="col">Change $</th>
+              <th scope="col">Change %</th>
+              <th scope="col">High</th>
+              <th scope="col">Low</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -54,10 +47,31 @@
       </div>
     </section>
 
-    <section class="panel" id="tickerPanel">
-      <div class="panel-head">
+    <section class="panel" id="tickerPanel" role="tabpanel" aria-labelledby="tab-ticker">
+      <div class="panel-head panel-head-ticker">
         <h2>Ticker Snapshot</h2>
-        <span id="tickerUpdated">-</span>
+        <div class="ticker-panel-controls">
+          <div class="ticker-search-wrap">
+            <label for="tickerSearch" class="sr-only">Search stock</label>
+            <input
+              id="tickerSearch"
+              class="ticker-search"
+              type="search"
+              placeholder="Search by symbol or company"
+              aria-label="Search stocks by symbol or company name"
+              autocomplete="off"
+            >
+          </div>
+          <div class="ticker-select-wrap">
+            <label for="tickerSelect" class="sr-only">Select stock</label>
+            <select id="tickerSelect" class="ticker-select" aria-label="Select stock"></select>
+            <span id="tickerUpdated" class="ticker-panel-updated" aria-live="polite">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="ticker-selected" aria-live="polite">
+        <p class="ticker-selected-label">Selected Stock</p>
+        <h3 id="tickerSelectedSymbol" class="ticker-selected-symbol">-</h3>
       </div>
 
       <div class="stats-grid">
@@ -95,42 +109,28 @@
         <div class="chart-head">
           <h3>Candles + 40-Minute Forecast</h3>
           <div class="chart-tools">
-            <button id="chartZoomOutBtn" class="chart-tool-btn" type="button">-</button>
-            <button id="chartResetBtn" class="chart-tool-btn" type="button">Reset</button>
-            <button id="chartZoomInBtn" class="chart-tool-btn" type="button">+</button>
+            <button id="chartZoomOutBtn" class="chart-tool-btn" type="button" aria-label="Zoom out chart">-</button>
+            <button id="chartResetBtn" class="chart-tool-btn" type="button" aria-label="Reset chart view">Reset</button>
+            <button id="chartZoomInBtn" class="chart-tool-btn" type="button" aria-label="Zoom in chart">+</button>
           </div>
         </div>
-        <div class="chart-subhead">
-          <span id="chartLegend">Green/Red: live candles | Orange: forecast candles</span>
-          <span class="chart-hint">Wheel to zoom | Click and drag to pan | Double-click to reset</span>
-        </div>
-        <svg id="priceChart" viewBox="0 0 960 360" preserveAspectRatio="none" role="img" aria-label="Price and forecast chart"></svg>
-      </div>
-
-      <div class="oos-card">
-        <h3>Live OOS Metrics (24h)</h3>
-        <div class="oos-grid">
-          <div><span>Total Scored</span><strong id="oosTotal">-</strong></div>
-          <div><span>3-Class Accuracy</span><strong id="oosAcc3">-</strong></div>
-          <div><span>Binary Accuracy</span><strong id="oosAccBin">-</strong></div>
-          <div><span>MAE Return</span><strong id="oosMae">-</strong></div>
-        </div>
+        <svg id="priceChart" viewBox="0 0 960 360" preserveAspectRatio="none" role="img" tabindex="0" aria-label="Price and forecast candlestick chart. Green and red bars are live data; orange bars are 40-minute forecast. Use plus and minus keys to zoom, 0 to reset."></svg>
       </div>
     </section>
 
-    <section class="panel" id="newsPanel">
+    <section class="panel" id="newsPanel" role="tabpanel" aria-labelledby="tab-news">
       <div class="panel-head">
         <h2>Headlines</h2>
-        <span id="newsUpdated">-</span>
+        <span id="newsUpdated" aria-live="polite">-</span>
       </div>
-      <div id="newsList" class="news-list"></div>
+      <div id="newsList" class="news-list" role="list" aria-label="Headlines list"></div>
     </section>
 
-    <section class="panel" id="settingsPanel">
+    <section class="panel" id="settingsPanel" role="tabpanel" aria-labelledby="tab-settings">
       <div class="panel-head">
         <h2>Runtime Settings</h2>
       </div>
-      <pre id="settingsDump">Loading settings...</pre>
+      <pre id="settingsDump" aria-live="polite">Loading settings...</pre>
     </section>
   </main>
 

@@ -1,4 +1,4 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,19 +20,186 @@ const DEFAULT_SYMBOLS = [
   "AAPL",
   "MSFT",
   "NVDA",
-  "7203.T",
-  "6758.T",
-  "9984.T",
-  "8306.T",
-  "7974.T",
+  "AMZN",
+  "GOOGL",
+  "META",
+  "TSLA",
+  "AVGO",
+  "AMD",
+  "INTC",
+  "QCOM",
+  "MU",
+  "NFLX",
+  "ORCL",
+  "CRM",
+  "ADBE",
+  "CSCO",
+  "IBM",
+  "TXN",
+  "NOW",
+  "PANW",
+  "PLTR",
+  "SNOW",
+  "JPM",
+  "BAC",
+  "WFC",
+  "C",
+  "GS",
+  "MS",
+  "AXP",
+  "BLK",
+  "SCHW",
+  "UNH",
+  "LLY",
+  "JNJ",
+  "MRK",
+  "ABBV",
+  "PFE",
+  "TMO",
+  "DHR",
+  "ISRG",
+  "MDT",
+  "XOM",
+  "CVX",
+  "COP",
+  "SLB",
+  "CAT",
+  "DE",
+  "GE",
+  "HON",
+  "RTX",
+  "LMT",
+  "BA",
+  "UPS",
+  "FDX",
+  "WMT",
+  "COST",
+  "HD",
+  "LOW",
+  "TGT",
+  "MCD",
+  "SBUX",
+  "NKE",
+  "DIS",
+  "KO",
+  "PEP",
+  "PG",
+  "VZ",
+  "T",
+  "TMUS",
+  "CMCSA",
+  "RY.TO",
+  "TD.TO",
+  "BNS.TO",
+  "BMO.TO",
+  "CM.TO",
+  "NA.TO",
+  "ENB.TO",
+  "SU.TO",
+  "CNQ.TO",
+  "IMO.TO",
+  "CNR.TO",
+  "CP.TO",
+  "BCE.TO",
+  "T.TO",
+  "ATD.TO",
+  "SHOP.TO",
+  "TRI.TO",
+  "BN.TO",
+  "BAM.TO",
 ];
 
 const DEFAULT_SYMBOL_NAMES = {
-  "7203.T": "Toyota Motor Corporation",
-  "6758.T": "Sony Group Corporation",
-  "9984.T": "SoftBank Group Corporation",
-  "8306.T": "Mitsubishi UFJ Financial Group",
-  "7974.T": "Nintendo Co., Ltd.",
+  AAPL: "Apple Inc.",
+  MSFT: "Microsoft Corporation",
+  NVDA: "NVIDIA Corporation",
+  AMZN: "Amazon.com, Inc.",
+  GOOGL: "Alphabet Inc. Class A",
+  META: "Meta Platforms, Inc.",
+  TSLA: "Tesla, Inc.",
+  AVGO: "Broadcom Inc.",
+  AMD: "Advanced Micro Devices, Inc.",
+  INTC: "Intel Corporation",
+  QCOM: "QUALCOMM Incorporated",
+  MU: "Micron Technology, Inc.",
+  NFLX: "Netflix, Inc.",
+  ORCL: "Oracle Corporation",
+  CRM: "Salesforce, Inc.",
+  ADBE: "Adobe Inc.",
+  CSCO: "Cisco Systems, Inc.",
+  IBM: "International Business Machines Corporation",
+  TXN: "Texas Instruments Incorporated",
+  NOW: "ServiceNow, Inc.",
+  PANW: "Palo Alto Networks, Inc.",
+  PLTR: "Palantir Technologies Inc.",
+  SNOW: "Snowflake Inc.",
+  JPM: "JPMorgan Chase & Co.",
+  BAC: "Bank of America Corporation",
+  WFC: "Wells Fargo & Company",
+  C: "Citigroup Inc.",
+  GS: "Goldman Sachs Group, Inc.",
+  MS: "Morgan Stanley",
+  AXP: "American Express Company",
+  BLK: "BlackRock, Inc.",
+  SCHW: "Charles Schwab Corporation",
+  UNH: "UnitedHealth Group Incorporated",
+  LLY: "Eli Lilly and Company",
+  JNJ: "Johnson & Johnson",
+  MRK: "Merck & Co., Inc.",
+  ABBV: "AbbVie Inc.",
+  PFE: "Pfizer Inc.",
+  TMO: "Thermo Fisher Scientific Inc.",
+  DHR: "Danaher Corporation",
+  ISRG: "Intuitive Surgical, Inc.",
+  MDT: "Medtronic plc",
+  XOM: "Exxon Mobil Corporation",
+  CVX: "Chevron Corporation",
+  COP: "ConocoPhillips",
+  SLB: "Schlumberger N.V.",
+  CAT: "Caterpillar Inc.",
+  DE: "Deere & Company",
+  GE: "GE Aerospace",
+  HON: "Honeywell International Inc.",
+  RTX: "RTX Corporation",
+  LMT: "Lockheed Martin Corporation",
+  BA: "Boeing Company",
+  UPS: "United Parcel Service, Inc.",
+  FDX: "FedEx Corporation",
+  WMT: "Walmart Inc.",
+  COST: "Costco Wholesale Corporation",
+  HD: "Home Depot, Inc.",
+  LOW: "Lowe's Companies, Inc.",
+  TGT: "Target Corporation",
+  MCD: "McDonald's Corporation",
+  SBUX: "Starbucks Corporation",
+  NKE: "NIKE, Inc.",
+  DIS: "Walt Disney Company",
+  KO: "Coca-Cola Company",
+  PEP: "PepsiCo, Inc.",
+  PG: "Procter & Gamble Company",
+  VZ: "Verizon Communications Inc.",
+  T: "AT&T Inc.",
+  TMUS: "T-Mobile US, Inc.",
+  CMCSA: "Comcast Corporation",
+  "RY.TO": "Royal Bank of Canada",
+  "TD.TO": "Toronto-Dominion Bank",
+  "BNS.TO": "Bank of Nova Scotia",
+  "BMO.TO": "Bank of Montreal",
+  "CM.TO": "Canadian Imperial Bank of Commerce",
+  "NA.TO": "National Bank of Canada",
+  "ENB.TO": "Enbridge Inc.",
+  "SU.TO": "Suncor Energy Inc.",
+  "CNQ.TO": "Canadian Natural Resources",
+  "IMO.TO": "Imperial Oil Limited",
+  "CNR.TO": "Canadian National Railway",
+  "CP.TO": "Canadian Pacific Kansas City",
+  "BCE.TO": "BCE Inc.",
+  "T.TO": "TELUS Corporation",
+  "ATD.TO": "Alimentation Couche-Tard",
+  "SHOP.TO": "Shopify Inc.",
+  "TRI.TO": "Thomson Reuters Corporation",
+  "BN.TO": "Brookfield Corporation",
+  "BAM.TO": "Brookfield Asset Management",
 };
 
 function utcNow() {
@@ -154,6 +321,8 @@ function chartToBars(chart, limit = 240) {
     if (!Number.isFinite(ts) || !Number.isFinite(o) || !Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(c)) {
       continue;
     }
+    if (o <= 0 || h <= 0 || l <= 0 || c <= 0) continue;
+    if (h < l || h < o || h < c || l > o || l > c) continue;
 
     rows.push({
       timestamp: new Date(ts * 1000).toISOString(),
@@ -172,91 +341,131 @@ function chartToBars(chart, limit = 240) {
   return rows;
 }
 
-function chooseRange(limit) {
-  if (limit <= 390) return "5d";
-  if (limit <= 2000) return "1mo";
-  return "3mo";
+function getBarsFetchPlan(symbol, limit) {
+  if (limit <= 390) {
+    return [
+      { range: "5d", interval: "1m" },
+      { range: "1mo", interval: "5m" },
+      { range: "3mo", interval: "15m" },
+    ];
+  }
+
+  if (limit <= 2000) {
+    return [
+      { range: "1mo", interval: "5m" },
+      { range: "3mo", interval: "15m" },
+      { range: "6mo", interval: "1d" },
+    ];
+  }
+
+  return [
+    { range: "3mo", interval: "15m" },
+    { range: "6mo", interval: "1d" },
+    { range: "1y", interval: "1d" },
+  ];
 }
 
 async function getBars(symbol, limit = 240) {
   const cleanSymbol = String(symbol || "").trim().toUpperCase();
   const now = Date.now();
+  const targetLimit = Math.max(10, Number(limit) || 240);
   const cacheItem = barsCache.get(cleanSymbol);
 
   if (cacheItem) {
     const ageSec = (now - cacheItem.fetchedAt) / 1000;
-    if (ageSec < barsRefreshInterval) {
+    const cacheCanServeLimit = Number(cacheItem.maxLimit || 0) >= targetLimit;
+    if (ageSec < barsRefreshInterval && cacheCanServeLimit) {
       const cachedBars = cacheItem.bars || [];
-      return cachedBars.length > limit ? cachedBars.slice(cachedBars.length - limit) : cachedBars;
+      return cachedBars.length > targetLimit ? cachedBars.slice(cachedBars.length - targetLimit) : cachedBars;
     }
   }
 
-  const range = chooseRange(limit);
-  try {
-    const chart = await fetchYahooChart(cleanSymbol, range, "1m");
-    const bars = chartToBars(chart, Math.max(limit, 240));
-    barsCache.set(cleanSymbol, { fetchedAt: now, bars });
-    if (bars.length > limit) {
-      return bars.slice(bars.length - limit);
+  const fetchPlan = getBarsFetchPlan(cleanSymbol, targetLimit);
+  let bestBars = [];
+
+  for (const step of fetchPlan) {
+    try {
+      const chart = await fetchYahooChart(cleanSymbol, step.range, step.interval);
+      const bars = chartToBars(chart, Math.max(targetLimit, 240));
+      if (!bars.length) continue;
+      if (bars.length > bestBars.length) bestBars = bars;
+
+      if (bars.length >= targetLimit || bars.length >= 240) {
+        barsCache.set(cleanSymbol, { fetchedAt: now, bars, maxLimit: targetLimit });
+        return bars.length > targetLimit ? bars.slice(bars.length - targetLimit) : bars;
+      }
+    } catch {
+      // Try the next resolution step.
     }
-    return bars;
-  } catch (error) {
-    if (cacheItem?.bars?.length) {
-      const cachedBars = cacheItem.bars;
-      return cachedBars.length > limit ? cachedBars.slice(cachedBars.length - limit) : cachedBars;
-    }
-    return [];
   }
+
+  if (bestBars.length) {
+    barsCache.set(cleanSymbol, { fetchedAt: now, bars: bestBars, maxLimit: targetLimit });
+    return bestBars.length > targetLimit ? bestBars.slice(bestBars.length - targetLimit) : bestBars;
+  }
+
+  if (cacheItem?.bars?.length) {
+    const cachedBars = cacheItem.bars;
+    return cachedBars.length > targetLimit ? cachedBars.slice(cachedBars.length - targetLimit) : cachedBars;
+  }
+  return [];
 }
 
 async function getQuoteRaw(symbol, fallbackBars = []) {
   const cleanSymbol = String(symbol || "").trim().toUpperCase();
+  const quotePlan = [
+    { range: "1d", interval: "1m", limit: 390 },
+    { range: "5d", interval: "5m", limit: 390 },
+    { range: "1mo", interval: "1d", limit: 120 },
+  ];
 
-  try {
-    const chart = await fetchYahooChart(cleanSymbol, "1d", "1m");
-    const bars = chartToBars(chart, 390);
-    if (!bars.length) {
-      throw new Error("No bars in quote payload");
+  for (const step of quotePlan) {
+    try {
+      const chart = await fetchYahooChart(cleanSymbol, step.range, step.interval);
+      const bars = chartToBars(chart, step.limit);
+      if (!bars.length) continue;
+
+      const last = bars[bars.length - 1];
+      const prev = bars.length > 1 ? bars[bars.length - 2] : last;
+      const dayOpen = bars[0]?.open ?? prev.close;
+      const dayHigh = Math.max(...bars.map((x) => Number(x.high)).filter(Number.isFinite));
+      const dayLow = Math.min(...bars.map((x) => Number(x.low)).filter(Number.isFinite));
+
+      return {
+        symbol: cleanSymbol,
+        last_price: Number(last.close),
+        c: Number(last.close),
+        pc: Number(prev.close),
+        o: Number(dayOpen),
+        h: Number(dayHigh),
+        l: Number(dayLow),
+        timestamp: toIso(utcNow()),
+        t: Math.floor(Date.now() / 1000),
+      };
+    } catch {
+      // Try the next quote plan step.
     }
-
-    const last = bars[bars.length - 1];
-    const prev = bars.length > 1 ? bars[bars.length - 2] : last;
-    const dayOpen = bars[0]?.open ?? prev.close;
-    const dayHigh = Math.max(...bars.map((x) => Number(x.high)).filter(Number.isFinite));
-    const dayLow = Math.min(...bars.map((x) => Number(x.low)).filter(Number.isFinite));
-
-    return {
-      symbol: cleanSymbol,
-      last_price: Number(last.close),
-      c: Number(last.close),
-      pc: Number(prev.close),
-      o: Number(dayOpen),
-      h: Number(dayHigh),
-      l: Number(dayLow),
-      timestamp: toIso(utcNow()),
-      t: Math.floor(Date.now() / 1000),
-    };
-  } catch {
-    const bars = fallbackBars || [];
-    if (!bars.length) {
-      return null;
-    }
-
-    const last = bars[bars.length - 1];
-    const prev = bars.length > 1 ? bars[bars.length - 2] : last;
-
-    return {
-      symbol: cleanSymbol,
-      last_price: Number(last.close),
-      c: Number(last.close),
-      pc: Number(prev.close),
-      o: Number(bars[0]?.open ?? prev.close),
-      h: Number(last.high),
-      l: Number(last.low),
-      timestamp: toIso(utcNow()),
-      t: Math.floor(Date.now() / 1000),
-    };
   }
+
+  const bars = fallbackBars || [];
+  if (!bars.length) {
+    return null;
+  }
+
+  const last = bars[bars.length - 1];
+  const prev = bars.length > 1 ? bars[bars.length - 2] : last;
+
+  return {
+    symbol: cleanSymbol,
+    last_price: Number(last.close),
+    c: Number(last.close),
+    pc: Number(prev.close),
+    o: Number(bars[0]?.open ?? prev.close),
+    h: Number(last.high),
+    l: Number(last.low),
+    timestamp: toIso(utcNow()),
+    t: Math.floor(Date.now() / 1000),
+  };
 }
 
 function normalizeQuote(symbol, quote, bars) {
@@ -380,6 +589,38 @@ function generateForecastPath(symbol, bars, forecast, horizonMinutes = 40) {
   return path;
 }
 
+function generateForecastPathFromQuote(symbol, quote, forecast, horizonMinutes = 40) {
+  const startPrice = Number(quote?.price || 0);
+  if (!Number.isFinite(startPrice) || startPrice <= 0) return [];
+
+  const quoteTs = quote?.timestamp_utc ? new Date(quote.timestamp_utc).getTime() : Date.now();
+  if (!Number.isFinite(quoteTs)) return [];
+
+  const retPct = Number(forecast?.predicted_return_pct || 0);
+  const targetPrice = Math.max(0.01, startPrice * (1 + retPct / 100));
+  const steps = Math.max(1, Math.floor(horizonMinutes));
+
+  const seed = crypto.createHash("sha256").update(`${symbol}|${quoteTs}|${startPrice}|${retPct}`).digest();
+  let seedInt = seed.readUInt32BE(0);
+  function rand() {
+    seedInt = (1664525 * seedInt + 1013904223) % 4294967296;
+    return seedInt / 4294967296;
+  }
+
+  const path = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    const base = startPrice + (targetPrice - startPrice) * t;
+    const wiggle = (rand() - 0.5) * startPrice * 0.0025;
+    const price = i === 0 ? startPrice : i === steps ? targetPrice : Math.max(0.01, base + wiggle);
+    path.push({
+      timestamp: new Date(quoteTs + i * 60000).toISOString(),
+      price,
+    });
+  }
+  return path;
+}
+
 function getMarketStatus(now = new Date()) {
   const weekday = now.getUTCDay();
   const isWeekday = weekday >= 1 && weekday <= 5;
@@ -404,7 +645,7 @@ function getMarketStatus(now = new Date()) {
 }
 
 function barsToJson(bars, limit = 120) {
-  const out = (bars || []).slice(-limit).map((row) => ({
+  const cleaned = (bars || []).map((row) => ({
     timestamp: row.timestamp,
     open: Number(row.open),
     high: Number(row.high),
@@ -412,16 +653,32 @@ function barsToJson(bars, limit = 120) {
     close: Number(row.close),
     volume: Number(row.volume || 0),
   }));
-  return out.filter((x) => Number.isFinite(new Date(x.timestamp).getTime()) && Number.isFinite(x.close));
+  const valid = cleaned.filter((x) => {
+    const ts = new Date(x.timestamp).getTime();
+    return (
+      Number.isFinite(ts) &&
+      Number.isFinite(x.open) &&
+      Number.isFinite(x.high) &&
+      Number.isFinite(x.low) &&
+      Number.isFinite(x.close) &&
+      x.open > 0 &&
+      x.high > 0 &&
+      x.low > 0 &&
+      x.close > 0
+    );
+  });
+  return valid.slice(-limit);
 }
 
 async function getTickerSnapshot(symbol) {
   const cleanSymbol = String(symbol || "").trim().toUpperCase();
+  const requestedBars = 360;
+  const chartBars = 240;
   const now = utcNow();
   const startedAt = Date.now();
 
   const barsFetchStart = Date.now();
-  const bars = await getBars(cleanSymbol, 240);
+  const bars = await getBars(cleanSymbol, requestedBars);
   const barsFetchMs = Date.now() - barsFetchStart;
 
   const quoteFetchStart = Date.now();
@@ -434,10 +691,14 @@ async function getTickerSnapshot(symbol) {
   const forecast = buildQuickForecast(quote);
   const forecastFetchMs = Date.now() - forecastFetchStart;
 
-  const barsForPlot = bars.slice(-120);
-  const barsJson = barsToJson(barsForPlot, 120);
+  const barsForPlot = bars.slice(-chartBars);
+  const barsJson = barsToJson(barsForPlot, chartBars);
 
-  const forecastPath = generateForecastPath(cleanSymbol, barsForPlot, forecast, clampNumber(forecastCfg.horizon_minutes, 1, 120, 40));
+  const horizonMin = clampNumber(forecastCfg.horizon_minutes, 1, 120, 40);
+  let forecastPath = generateForecastPath(cleanSymbol, barsForPlot, forecast, horizonMin);
+  if (!forecastPath.length && quote?.price) {
+    forecastPath = generateForecastPathFromQuote(cleanSymbol, quote, forecast, horizonMin);
+  }
 
   let lastMarketPrintEst = null;
   let lastMarketPrintAgeSeconds = null;
