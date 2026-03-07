@@ -1,0 +1,139 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Futursia Forecasting Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+  <main class="app-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <h1>Futursia Forecasting Site</h1>
+        <p>Website-only edition. Live movers, ticker detail, 40-minute forecast path, and headlines.</p>
+      </div>
+      <div class="hero-controls">
+        <label for="symbolSelect">Ticker</label>
+        <select id="symbolSelect"></select>
+        <span id="lastUpdatedPill">Waiting for data...</span>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Sections">
+      <button class="tab is-active" data-panel="dashboardPanel" type="button">Dashboard</button>
+      <button class="tab" data-panel="tickerPanel" type="button">Ticker Detail</button>
+      <button class="tab" data-panel="newsPanel" type="button">News</button>
+      <button class="tab" data-panel="settingsPanel" type="button">Settings</button>
+    </nav>
+
+    <section class="panel is-active" id="dashboardPanel">
+      <div class="panel-head">
+        <h2>Top Movers</h2>
+        <span id="dashboardUpdated">-</span>
+      </div>
+      <div class="table-wrap">
+        <table id="moversTable">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Price</th>
+              <th>Change $</th>
+              <th>Change %</th>
+              <th>High</th>
+              <th>Low</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="tickerPanel">
+      <div class="panel-head">
+        <h2>Ticker Snapshot</h2>
+        <span id="tickerUpdated">-</span>
+      </div>
+
+      <div class="stats-grid">
+        <article class="stat-card">
+          <h3>Price</h3>
+          <p id="priceValue">-</p>
+          <small id="priceChange">-</small>
+        </article>
+        <article class="stat-card">
+          <h3>Forecast</h3>
+          <p id="forecastDirection">-</p>
+          <small id="forecastReturn">-</small>
+        </article>
+        <article class="stat-card">
+          <h3>Confidence</h3>
+          <p id="forecastConfidence">-</p>
+          <small id="forecastStatus">-</small>
+        </article>
+        <article class="stat-card">
+          <h3>Market</h3>
+          <p id="marketStatus">-</p>
+          <small id="lastMarketPrint">-</small>
+        </article>
+      </div>
+
+      <div class="latency-card">
+        <div><span>Stream Quality</span><strong id="streamQuality">-</strong></div>
+        <div><span>Quote Age</span><strong id="quoteAge">-</strong></div>
+        <div><span>Last Bar Age</span><strong id="barAge">-</strong></div>
+        <div><span>Backend Total</span><strong id="backendTotal">-</strong></div>
+      </div>
+      <p class="latency-breakdown" id="backendBreakdown">-</p>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>Candles + 40-Minute Forecast</h3>
+          <div class="chart-tools">
+            <button id="chartZoomOutBtn" class="chart-tool-btn" type="button">-</button>
+            <button id="chartResetBtn" class="chart-tool-btn" type="button">Reset</button>
+            <button id="chartZoomInBtn" class="chart-tool-btn" type="button">+</button>
+          </div>
+        </div>
+        <div class="chart-subhead">
+          <span id="chartLegend">Green/Red: live candles | Orange: forecast candles</span>
+          <span class="chart-hint">Wheel to zoom | Click and drag to pan | Double-click to reset</span>
+        </div>
+        <svg id="priceChart" viewBox="0 0 960 360" preserveAspectRatio="none" role="img" aria-label="Price and forecast chart"></svg>
+      </div>
+
+      <div class="oos-card">
+        <h3>Live OOS Metrics (24h)</h3>
+        <div class="oos-grid">
+          <div><span>Total Scored</span><strong id="oosTotal">-</strong></div>
+          <div><span>3-Class Accuracy</span><strong id="oosAcc3">-</strong></div>
+          <div><span>Binary Accuracy</span><strong id="oosAccBin">-</strong></div>
+          <div><span>MAE Return</span><strong id="oosMae">-</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="newsPanel">
+      <div class="panel-head">
+        <h2>Headlines</h2>
+        <span id="newsUpdated">-</span>
+      </div>
+      <div id="newsList" class="news-list"></div>
+    </section>
+
+    <section class="panel" id="settingsPanel">
+      <div class="panel-head">
+        <h2>Runtime Settings</h2>
+      </div>
+      <pre id="settingsDump">Loading settings...</pre>
+    </section>
+  </main>
+
+  <script src="/site.js"></script>
+</body>
+</html>

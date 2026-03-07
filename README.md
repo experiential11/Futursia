@@ -1,80 +1,51 @@
-# Futursia Forecasting
+﻿# Futursia Web (Dark Theme)
 
-Stock forecasting application with real-time market analysis and 40-minute price predictions.
+This project is now a website-first app (Node.js + Express + browser frontend).
 
-## Choose Your Version
+## Stack
+- Backend: Node.js (`server/index.js`)
+- Frontend: static website (`public/index.html`, `public/site.js`, `public/site.css`)
+- Market data: Yahoo Finance chart endpoint
+- Theme: Dark (default, full UI)
 
-### Web Application (Recommended)
-Modern, responsive web app running in your browser.
+## Pull + Run Instructions (Website)
 
-**Quick start:**
-```bash
+1. Pull latest code:
+
+```powershell
+git pull origin main
+```
+
+2. Install dependencies:
+
+```powershell
 npm install
-# Terminal 1: npm run server
-# Terminal 2: npm run dev
-# Open http://localhost:5173
 ```
 
-See `QUICKSTART.md` for detailed instructions.
-
-### Desktop Application
-PyQt5 desktop app with interactive charts and local UI.
-
-**Quick start:**
-```bash
-pip install -r requirements.txt
-python main.py
-```
-
-## Quick Start (Windows / PowerShell)
-
-1. Clone and enter the repo:
+3. Create your local env file (first run only):
 
 ```powershell
-git clone <your-repo-url>
-cd Futursia
+Copy-Item .env.example .env
 ```
 
-2. Create and activate a virtual environment:
+4. Start the website server:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+npm run dev
 ```
 
-3. Install dependencies:
+5. Open:
 
-```powershell
-pip install -r requirements.txt
-```
+- `http://localhost:5000`
 
-4. (Optional) Set API keys as environment variables:
+## Environment Variables
 
-```powershell
-$env:DATABENTO_API_KEY="your_key"
-$env:FMP_API_KEY="your_key"
-$env:FINNHUB_API_KEY="your_key"
-$env:NEWS_API_KEY="your_key"
-```
-
-5. Run the app:
-
-```powershell
-python main.py
-```
-
-## Main Entry Point
-
-- Primary entry: `main.py`
-- App module: `app_desktop.py`
-
-## Provider Selection
-
-Edit `configs/config.yaml`:
-- `market_api_provider: "yfinance"` (no key required)
-- or `databento`, `fmp`, `finnhub` (set matching env key)
+- `FUTURSIA_WEB_HOST` (default `127.0.0.1`)
+- `FUTURSIA_WEB_PORT` (default `5000`)
+- `NEWS_API_KEY` (optional, for headlines)
 
 ## Notes
 
-- No API keys are committed in this repository.
-- Runtime/generated data is ignored by git via `.gitignore`.
+- Config file: `configs/config.yaml`
+- Provider is configured as `yfinance`.
+- Nikkei symbol names are included and displayed in the UI.
