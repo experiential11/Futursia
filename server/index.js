@@ -914,7 +914,11 @@ app.get("/api/news/:symbol", async (req, res) => {
 const host = process.env.FUTURSIA_WEB_HOST || String(appCfg.host || "127.0.0.1");
 const port = clampNumber(process.env.FUTURSIA_WEB_PORT || appCfg.port, 1, 65535, 5000);
 
-app.listen(port, host, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Futursia website running at http://${host}:${port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, host, () => {
+    // eslint-disable-next-line no-console
+    console.log(`Futursia website running at http://${host}:${port}`);
+  });
+}
+
+export default app;
