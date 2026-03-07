@@ -1,0 +1,140 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.dashboard-header .subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.controls-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.status-label {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 12px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+}
+
+.refresh-btn {
+  padding: 8px 20px;
+  background: var(--primary);
+  color: white;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #1a5a96;
+}
+
+.table-card {
+  padding: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.table-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.movers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.movers-table thead {
+  background: var(--bg-tertiary);
+}
+
+.movers-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border);
+}
+
+.movers-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.movers-table tbody tr:hover {
+  background: var(--bg-primary);
+}
+
+.movers-table .symbol {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.movers-table td.positive {
+  color: var(--green-text);
+  font-weight: 600;
+}
+
+.movers-table td.negative {
+  color: var(--red-text);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .controls-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .status-label {
+    flex: 1;
+  }
+
+  .refresh-btn {
+    width: 100%;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .movers-table {
+    font-size: 13px;
+  }
+
+  .movers-table th,
+  .movers-table td {
+    padding: 8px;
+  }
+}

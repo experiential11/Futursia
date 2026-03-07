@@ -1,10 +1,30 @@
-# Futursia Forecasting Desktop App
+# Futursia Forecasting
 
-Desktop stock forecasting app with:
-- Live market chart updates
-- 40-minute forecast path (minute-by-minute points)
-- Interactive zoom and drag pan
-- News and diagnostics tabs
+Stock forecasting application with real-time market analysis and 40-minute price predictions.
+
+## Choose Your Version
+
+### Web Application (Recommended)
+Modern, responsive web app running in your browser.
+
+**Quick start:**
+```bash
+npm install
+# Terminal 1: npm run server
+# Terminal 2: npm run dev
+# Open http://localhost:5173
+```
+
+See `QUICKSTART.md` for detailed instructions.
+
+### Desktop Application
+PyQt5 desktop app with interactive charts and local UI.
+
+**Quick start:**
+```bash
+pip install -r requirements.txt
+python main.py
+```
 
 ## Quick Start (Windows / PowerShell)
 

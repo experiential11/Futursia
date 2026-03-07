@@ -1,0 +1,130 @@
+.news {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.news-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.news-header .subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.selector-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.selector-card label {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.selector-card select {
+  flex: 1;
+  max-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  font-size: 14px;
+}
+
+.news-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.headlines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.headline-card {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.headline-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.headline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.headline-number {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.headline-source {
+  background: var(--bg-primary);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.headline-date {
+  color: var(--text-muted);
+}
+
+.headline-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.headline-summary {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .selector-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .selector-card select {
+    max-width: 100%;
+  }
+
+  .headline-meta {
+    gap: 6px;
+  }
+
+  .headline-title {
+    font-size: 15px;
+  }
+}
